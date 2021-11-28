@@ -12,15 +12,6 @@
           - name: Check connection
             ping:
 
-          - name: Check if app is downloaded
-            stat:
-              path: ./html_demo_site-main
-            register: path_exists
-
-          - debug: 
-                msg: "App will be uploaded"
-            when: path_exists.stat.exists == False
-
           - block: #---------CentOS
 
             - name: Ensure nginx is at the latest version
