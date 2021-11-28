@@ -1,0 +1,80 @@
+---
+- hosts: all
+  become: yes
+  vars:
+    server_name: "{{ ansible_default_ipv4.address }}"
+    document_root: /var/www
+    app_root: html_demo_site-main
+    av_path: 'nginx/sites-available'
+    en_path: 'nginx/sites-enabled'
+
+  tasks:
+          - name: Check connection
+            ping:
+
+          - name: Check if app is downloaded
+            stat:
+              path: ./html_demo_site-main
+            register: path_exists
+
+          - debug: 
+                msg: "App will be uploaded"
+            when: path_exists.stat.exists == False
+
+          - block: #---------CentOS
+
+            - name: Ensure nginx is at the latest version
+              yum: name=nginx state=latest
+
+            when: ansible_os_family == "RedHat"
+
+          - name: Create Directory
+            file:
+              path: "{{ log_path }}{{ av_path }}"
+              state: directory
+
+          - name: Create Directory
+            file:
+              path: "{{ log_path }}{{ en_path }}"
+              state: directory
+
+          - block: #---------Debian
+
+            - name: Ensure nginx is at the latest version
+              apt: name=nginx state=latest
+            
+            - name: Ensure ufw is at the latest version
+              apt: name=ufw state=latest
+
+            when: ansible_os_family == "Debian" 
+          
+          - name: Copy website files to the server's document root
+            copy:
+              src: "{{ app_root }}"
+              dest: "{{ document_root }}"
+              mode: preserve
+
+          - name: Apply Nginx template
+            template:
+              src: files/nginx.conf.j2
+              dest: "{{ log_path }}{{ av_path }}/default"
+            notify: Restart Nginx
+
+          - name: Enable new site
+            file:
+              src: "{{ log_path }}{{ av_path }}/default"
+              dest: "{{ log_path }}{{ en_path }}/default"
+              state: link
+            notify: Restart Nginx
+         
+          - name: Allow all access to tcp port 80
+            ufw: 
+              rule: allow
+              port: '80'
+              proto: tcp
+         
+  handlers:        
+          - name: Restart Nginx
+            service:
+              name: nginx
+              state: restarted
