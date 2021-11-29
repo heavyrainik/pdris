@@ -1,0 +1,61 @@
+---
+- hosts: all
+  become: yes
+  vars: 
+    git_repo: https://github.com/XD-DENG/flask-example.git
+    repo: repo2
+
+  tasks:
+    - block: #=====CentOS
+      - name: Install python
+        yum: name={{item}} state=present update_cache=yes
+        loop:
+          - git
+          - python3-pip
+          - python3-virtualenv
+        when: ansible_os_family == "RedHat"
+    
+    - block: #=====Debian
+      - name: Install python
+        apt: name={{item}} state=present
+        loop:
+          - git
+          - python3
+          - python3-pip
+          - python3-virtualenv
+        when: ansible_os_family == "Debian" 
+
+    - name: Check if repo exists
+      stat:
+        path: "{{ log_path }}{{ repo }}"
+      register: res    
+
+    - name: Clone a github repository
+      git:
+        repo: "{{ git_repo }}"
+        dest: "{{ log_path }}{{ repo }}"
+        clone: yes
+        update: yes
+      when: res.stat.exists == False
+    
+    - name: Create dir for venv
+      file: 
+        name: "{{ log_path }}{{ repo }}/venv"
+        state: directory
+
+    - name: Install requirements
+      pip:
+        requirements: "{{ log_path }}{{ repo }}/requirements.txt"
+        virtualenv: "{{ log_path }}{{ repo }}/venv"
+        virtualenv_python: /usr/bin/python3
+        virtualenv_command: /usr/bin/virtualenv
+
+    - name: Activate venv
+      shell: . "{{ log_path }}{{ repo }}/venv/bin/activate"
+      #- name: Cd
+      #shell: chmod a+x "/home/mftiedu/sobolevas/lab2/repo2/app.py" 
+
+    - name: Run app
+      become: true
+      become_user: root
+      shell: . "{{ log_path  }}{{ repo }}/venv/bin/activate" && python3 "/home/mftiedu/sobolevas/lab2/repo2/app.py"
