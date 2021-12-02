@@ -1,0 +1,12 @@
+version: "3.7"
+
+services:
+   python_app:
+     image: python_app
+     expose: 
+       - 5000
+
+   script:
+     image: script
+     depends_on: 
+       - python_app
